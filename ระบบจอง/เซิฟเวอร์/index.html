@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ลงชื่อเล่นเกม</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #eff6ff, #f8fafc);
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      color: #1f2937;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(100%, 480px);
+      background: white;
+      padding: 28px;
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.7rem;
+    }
+
+    p {
+      line-height: 1.6;
+      color: #475569;
+    }
+
+    form {
+      display: grid;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    label {
+      font-weight: 600;
+    }
+
+    input, button {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      font-size: 16px;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+
+    .message {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .link {
+      display: inline-block;
+      margin-top: 16px;
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>ลงชื่อเล่นเกม</h1>
+    <p>กรอกชื่อของคุณก่อนเริ่มเกม แล้วไปเล่นเกมบวกเลขในหน้าถัดไป</p>
+
+    <form id="playerForm">
+      <label for="name">ชื่อผู้เล่น</label>
+      <input id="name" name="name" maxlength="30" required />
+
+      <button type="submit">เริ่มเล่นเกม</button>
+    </form>
+
+    <div id="message" class="message">กรอกชื่อของคุณแล้วกดเริ่มเล่น</div>
+    <a class="link" href="/server.html">ดูอันดับปัจจุบัน</a>
+  </div>
+
+  <script>
+    const form = document.getElementById('playerForm');
+    const nameInput = document.getElementById('name');
+    const message = document.getElementById('message');
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = nameInput.value.trim();
+
+      if (!name) {
+        message.textContent = 'กรุณากรอกชื่อก่อนเริ่มเกม';
+        return;
+      }
+
+      localStorage.setItem('playerName', name);
+      window.location.href = `/about.html?name=${encodeURIComponent(name)}`;
+    });
+  </script>
+</body>
+</html>

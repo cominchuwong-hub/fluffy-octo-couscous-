@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>สรุปผลเกม</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f6ff;
+      margin: 0;
+      padding: 24px;
+      color: #1f2937;
+    }
+
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+      background: white;
+      padding: 24px;
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    h1, h2 {
+      margin-top: 0;
+    }
+
+    .summary {
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: white;
+      padding: 16px;
+      border-radius: 14px;
+      margin-bottom: 20px;
+    }
+
+    .subtle {
+      color: #64748b;
+      margin-top: 6px;
+      font-size: 0.95rem;
+    }
+
+    .summary strong {
+      font-size: 1.1rem;
+    }
+
+    .top-board {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .top-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .top-card strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+
+    th {
+      background: #f8fafc;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="link" href="/">← กลับหน้าลงชื่อ</a>
+    <h1>สรุปผลเกม</h1>
+
+    <div id="summary" class="summary">
+      กำลังโหลดข้อมูล...
+    </div>
+
+    <h2>ท็อปบอร์ด</h2>
+    <div id="topBoard" class="top-board"></div>
+
+    <h2>อันดับผู้เล่นทั้งหมด</h2>
+    <p class="subtle">แสดงชื่อทุกคนที่เคยเล่นเว็บนี้ พร้อมอันดับและคะแนนสูงสุดของแต่ละคน</p>
+    <table>
+      <thead>
+        <tr>
+          <th>อันดับ</th>
+          <th>ชื่อ</th>
+          <th>คะแนน</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboardBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const summary = document.getElementById('summary');
+    const leaderboardBody = document.getElementById('leaderboardBody');
+    const topBoard = document.getElementById('topBoard');
+
+    async function loadLeaderboard() {
+      try {
+        const response = await fetch('/api/leaderboard');
+        const data = await response.json();
+        renderLeaderboard(data.leaderboard || []);
+      } catch (error) {
+        leaderboardBody.innerHTML = '<tr><td colspan="3">ไม่สามารถโหลดอันดับได้ในขณะนี้</td></tr>';
+        topBoard.innerHTML = '<div class="top-card">กำลังโหลดข้อมูลไม่สำเร็จ กรุณาโหลดหน้าเว็บใหม่</div>';
+      }
+    }
+
+    function renderLeaderboard(list) {
+      leaderboardBody.innerHTML = '';
+      topBoard.innerHTML = '';
+
+      if (!list.length) {
+        leaderboardBody.innerHTML = '<tr><td colspan="3">ยังไม่มีข้อมูล</td></tr>';
+        topBoard.innerHTML = '<div class="top-card">ยังไม่มีผู้เล่นในระบบ</div>';
+        return;
+      }
+
+      const topThree = list.slice(0, 3);
+      topBoard.innerHTML = topThree.map((item, index) => {
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+        return `<div class="top-card"><strong>${medal} ${item.name}</strong>อันดับ ${item.rank} · คะแนน ${item.score}</div>`;
+      }).join('');
+
+      list.forEach((item) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${item.rank}</td>
+          <td>${item.name}</td>
+          <td>${item.score}</td>
+        `;
+        leaderboardBody.appendChild(row);
+      });
+    }
+
+    function showSummary() {
+      const params = new URLSearchParams(window.location.search);
+      const name = params.get('name');
+      const ranking = params.get('ranking');
+      const total = params.get('total');
+      const score = params.get('score');
+
+      if (name && ranking && total) {
+        const scoreText = score !== null ? `<br/>คะแนนของคุณ: ${score}` : '';
+        summary.innerHTML = `<strong>${name}</strong><br/>คุณอยู่ที่อันดับ ${ranking} จากทั้งหมด ${total} คน${scoreText}`;
+      } else {
+        summary.textContent = 'ยังไม่มีข้อมูลผู้เล่นในหน้านี้ กรุณาลงชื่อก่อน';
+      }
+    }
+
+    showSummary();
+    loadLeaderboard();
+  </script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จับเวลา | ระบบจอง</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #eef2f7; font-family: Arial, Tahoma, sans-serif; }
+        .container { max-width: 920px; margin: 40px auto; }
+        .card { border-radius: 16px; box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
+        .status-box { border-radius: 12px; background: white; padding: 18px; margin-bottom: 18px; }
+        .booking-item { border: 1px solid #e3e3f7; border-radius: 12px; padding: 14px; margin-bottom: 12px; background: #fff; }
+        .booking-item strong { color: #4b2e83; }
+        .header-text { color: #333; }
+        .small-text { color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2 class="header-text">จับเวลาอัตโนมัติ</h2>
+                    <p class="small-text mb-0">หน้านี้จะตรวจสอบและลบเฉพาะการจองห้องเรียนที่เกินเวลาจริงแล้ว และคงรายการข้ามวันไว้เพื่อให้คนเรียนวันถัดไปยังสามารถจองต่อได้</p>
+                </div>
+                <div class="text-end">
+                    <a href="index.html" class="btn btn-secondary">กลับหน้าหลัก</a>
+                </div>
+            </div>
+
+            <div class="status-box">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5>สถานะการตรวจสอบ</h5>
+                        <p class="mb-1" id="lastCheckText">กำลังรอการตรวจสอบ...</p>
+                        <p class="mb-1" id="dailyCleanupStatus">ลบการจองโรงอาหารและห้องสมุดครั้งล่าสุด: ยังไม่เคยทำ</p>
+                        <p class="mb-0 small-text">เวลาปัจจุบัน: <span id="currentTime">--:--:--</span></p>
+                        <p class="mb-0 small-text">ครั้งถัดไป: <span id="nextCleanupTime">--:--</span></p>
+                    </div>
+                    <div class="text-end">
+                        <button class="btn btn-primary" onclick="runCleanup(true)">ตรวจสอบตอนนี้</button>
+                        <button class="btn btn-outline-secondary" onclick="renderBookingList()">รีเฟรชรายการ</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-box">
+                <div class="row text-center">
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="h5">การจองทั้งหมด</div>
+                        <div id="totalCount" class="fs-3">0</div>
+                    </div>
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="h5">ลบออกแล้ว</div>
+                        <div id="removedCount" class="fs-3">0</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="h5">เหลืออยู่</div>
+                        <div id="activeCount" class="fs-3">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-box">
+                <h5>รายการจองห้องเรียนปัจจุบัน</h5>
+                <div id="bookingList"></div>
+                <p id="noBookings" class="small-text">ยังไม่มีรายการการจองที่ตรงกับเงื่อนไข</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function formatTime(date) {
+            return date.toLocaleTimeString('th-TH', { hour12: false });
+        }
+
+        function getBookingRecords() {
+            return JSON.parse(localStorage.getItem('booking_records') || '[]');
+        }
+
+        function saveBookingRecords(records) {
+            localStorage.setItem('booking_records', JSON.stringify(records));
+        }
+
+        function parseClassTimeRange(classTime, bookingDate) {
+            if (!classTime) return null;
+            const cleaned = String(classTime).trim().replace(/\./g, ':').replace(/\s+/g, '');
+            const match = cleaned.match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
+            if (!match) return null;
+            const [ , startHour, startMin = '0', endHour, endMin = '0' ] = match;
+            const baseDate = bookingDate ? new Date(`${bookingDate}T00:00:00`) : new Date();
+            const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), Number(startHour), Number(startMin));
+            let end = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), Number(endHour), Number(endMin));
+            if (end <= start) {
+                end.setDate(end.getDate() + 1);
+            }
+            return { start, end };
+        }
+
+        function cleanupExpiredBookings(showAlert = false) {
+            const bookings = getBookingRecords();
+            const now = new Date();
+            const valid = [];
+            let removed = 0;
+
+            bookings.forEach(booking => {
+                const bookingDate = String(booking.booking_date || '').trim() || new Date().toISOString().slice(0, 10);
+                const range = parseClassTimeRange(booking.class_time, bookingDate);
+                if (!range) {
+                    valid.push(booking);
+                    return;
+                }
+                if (now <= range.end) {
+                    valid.push(booking);
+                } else {
+                    removed += 1;
+                }
+            });
+
+            if (removed > 0) {
+                saveBookingRecords(valid);
+            }
+
+            document.getElementById('lastCheckText').textContent = `ตรวจสอบล่าสุดเมื่อ ${formatTime(now)}`;
+            document.getElementById('currentTime').textContent = formatTime(now);
+            document.getElementById('removedCount').textContent = removed;
+            renderBookingList();
+
+            if (showAlert) {
+                alert(`ลบการจองหมดเวลาจำนวน ${removed} รายการ`);
+            }
+        }
+
+        function cleanupDailyCanteenLibrary() {
+            document.getElementById('dailyCleanupStatus').textContent = 'ไม่ใช้การลบอัตโนมัติสำหรับห้องเรียนอีกต่อไป';
+            updateNextCleanupTime();
+        }
+
+        function cleanupAllBookingsAt1530(now, todayKey) {
+            return;
+        }
+
+        function updateNextCleanupTime() {
+            const now = new Date();
+            const next13 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 13, 0, 0);
+            const next1530 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 30, 0);
+            const next = now < next13 ? next13 : (now < next1530 ? next1530 : new Date(next1530.getFullYear(), next1530.getMonth(), next1530.getDate() + 1, 13, 0, 0));
+            document.getElementById('nextCleanupTime').textContent = next.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+
+        function renderBookingList() {
+            const bookings = getBookingRecords();
+            const list = document.getElementById('bookingList');
+            const noBookings = document.getElementById('noBookings');
+
+            document.getElementById('totalCount').textContent = bookings.length;
+            document.getElementById('activeCount').textContent = bookings.length;
+
+            if (bookings.length === 0) {
+                list.innerHTML = '';
+                noBookings.style.display = 'block';
+                return;
+            }
+
+            noBookings.style.display = 'none';
+            list.innerHTML = bookings.map((booking, index) => {
+                return `
+                    <div class="booking-item">
+                        <div><strong>รายการ ${index + 1}</strong></div>
+                        <div>ผู้จอง: ${booking.teacher_name || '-'} (${booking.department || '-'})</div>
+                        <div>ห้อง: ${booking.room || '-'}</div>
+                        <div>วันที่: ${booking.booking_date || '-'}</div>
+                        <div>รายวิชา: ${booking.subject || '-'}</div>
+                        <div>เวลา: ${booking.class_time || '-'}</div>
+                        <div>นักเรียน: ${booking.students || '-'} คน</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function runCleanup(force = false) {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = formatTime(now);
+            cleanupExpiredBookings(force);
+            cleanupDailyCanteenLibrary();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            runCleanup();
+            setInterval(() => {
+                runCleanup();
+            }, 60000);
+        });
+    </script>
+</body>
+</html>
